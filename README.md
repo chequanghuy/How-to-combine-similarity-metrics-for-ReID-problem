@@ -9,5 +9,6 @@ You can modify `scripts/test.sh` to change metric options at `TEST.METRICS "('')
 - `fusion_emd` for using fusion (cosine + EMD) as a metric.
 - `fusion_centroid` for using fusion (cosine + centroid) as a metric.
 - `centroid` for using only centroid as a metric.
+
 We using `cosine` as default metric.
 

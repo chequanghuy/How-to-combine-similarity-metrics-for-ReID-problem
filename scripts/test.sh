@@ -9,4 +9,4 @@
 # bnneck on
 # with center loss
 # with re-ranking
-python3 tools/test.py --config_file='configs/softmax_triplet_with_center.yml' MODEL.DEVICE_ID "('0')" DATASETS.NAMES "('veri')" DATASETS.ROOT_DIR "('/home/ceec/huycq/track2_aicity_2021/lib/data/datasets')" TEST.RE_RANKING "('no')" MODEL.PRETRAIN_CHOICE "('self')" TEST.WEIGHT "('/home/ceec/chuong/reid/veri_weights/final_2_80.pth')" TEST.METRICS "('')"
+python3 tools/test.py --config_file='configs/softmax_triplet_with_center.yml' MODEL.DEVICE_ID "('0')" DATASETS.NAMES "('veri')" DATASETS.ROOT_DIR "('/home/ceec/huycq/track2_aicity_2021/lib/data/datasets')" TEST.RE_RANKING "('no')" MODEL.PRETRAIN_CHOICE "('self')" TEST.METRICS "('')"

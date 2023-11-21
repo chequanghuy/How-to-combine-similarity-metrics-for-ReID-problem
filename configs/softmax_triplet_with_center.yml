@@ -60,7 +60,7 @@ TEST:
   IMS_PER_BATCH: 128
   RE_RANKING: 'no'
   METRICS: "" 
-  WEIGHT: "path"
+  WEIGHT: "/home/ceec/chuong/reid/veri_weights/final_2_80.pth"
   NECK_FEAT: 'after'
   FEAT_NORM: 'yes'
   LOAD_DATA: True

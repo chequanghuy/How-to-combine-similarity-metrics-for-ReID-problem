@@ -1,7 +1,7 @@
-2023-11-21 12:32:52,277 reid_baseline INFO: Using 1 GPUS
-2023-11-21 12:32:52,278 reid_baseline INFO: Namespace(config_file='configs/softmax_triplet_with_center.yml', opts=['MODEL.DEVICE_ID', "('0')", 'DATASETS.NAMES', "('veri')", 'DATASETS.ROOT_DIR', "('/home/ceec/huycq/track2_aicity_2021/lib/data/datasets')", 'TEST.RE_RANKING', "('no')", 'MODEL.PRETRAIN_CHOICE', "('self')", 'TEST.WEIGHT', "('/home/ceec/chuong/reid/veri_weights/final_2_80.pth')"])
-2023-11-21 12:32:52,278 reid_baseline INFO: Loaded configuration file configs/softmax_triplet_with_center.yml
-2023-11-21 12:32:52,278 reid_baseline INFO: 
+2023-11-21 12:53:42,334 reid_baseline INFO: Using 1 GPUS
+2023-11-21 12:53:42,334 reid_baseline INFO: Namespace(config_file='configs/softmax_triplet_with_center.yml', opts=['MODEL.DEVICE_ID', "('0')", 'DATASETS.NAMES', "('veri')", 'DATASETS.ROOT_DIR', "('/home/ceec/huycq/track2_aicity_2021/lib/data/datasets')", 'TEST.RE_RANKING', "('no')", 'MODEL.PRETRAIN_CHOICE', "('self')", 'TEST.WEIGHT', "('/home/ceec/chuong/reid/veri_weights/final_2_80.pth')", 'TEST.METRICS', "('')"])
+2023-11-21 12:53:42,334 reid_baseline INFO: Loaded configuration file configs/softmax_triplet_with_center.yml
+2023-11-21 12:53:42,334 reid_baseline INFO: 
 MODEL:
   PRETRAIN_CHOICE: 'resnet50_ibn_a'
   PRETRAIN_PATH: '/home/ceec/chuong/reid-strong-baseline/weights/Veri776/MBR_4B/best_mAP.pt'
@@ -72,7 +72,7 @@ TEST:
 OUTPUT_DIR: "veri_weights"
 
 
-2023-11-21 12:32:52,278 reid_baseline INFO: Running with config:
+2023-11-21 12:53:42,334 reid_baseline INFO: Running with config:
 DATALOADER:
   NUM_INSTANCE: 4
   NUM_WORKERS: 8
@@ -134,4 +134,4 @@ TEST:
   NECK_FEAT: after
   RE_RANKING: no
   WEIGHT: /home/ceec/chuong/reid/veri_weights/final_2_80.pth
-2023-11-21 12:32:58,233 reid_baseline.inference INFO: Enter inferencing
+2023-11-21 12:53:48,074 reid_baseline.inference INFO: Enter inferencing

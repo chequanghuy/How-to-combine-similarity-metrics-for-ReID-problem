@@ -12,4 +12,4 @@ You can modify `scripts/test.sh` to change metric options at `TEST.METRICS "('')
 
 We using `cosine` as default metric.
 
-hhhh
+

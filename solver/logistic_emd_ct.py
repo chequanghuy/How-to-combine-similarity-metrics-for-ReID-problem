@@ -43,7 +43,7 @@ def emd_dis(A,q, B,g, stage):
         v = torch.zeros(bs, s, dtype=sim.dtype, device=sim.device).fill_(1. / bs)
         T = Sinkhorn(K, u, v)
         sim = torch.sum(T * sim, dim=(1,2))
-        sim = torch.nan_to_num(sim) 
+    sim = torch.nan_to_num(sim) 
     return sim
 
 def gen_factor(gallery_feature, gallery_base, gallery_pid, metric = 'cosine'):
@@ -63,9 +63,11 @@ def gen_factor(gallery_feature, gallery_base, gallery_pid, metric = 'cosine'):
         indexdiff = np.where(g_camids != g_camids[index_arr[0]])[0]
         indexdiff_r = np.intersect1d(index_arr,indexdiff)
         point2 = gallery_feature[indexdiff_r[0]].view(1, -1)
+        centers = torch.mean(gallery_feature[indexdiff_r[1:]], 0)
         point2_emd = gallery_base[indexdiff_r[0]]
+        centers_emd = torch.mean(gallery_base[indexdiff_r[1:]], 0)
         if metric == 'cosine':
-            cos_sim = emd_dis(point1.squeeze(0), None, point2, None, 0)
+            cos_sim = emd_dis(point1.squeeze(0), None, centers.unsqueeze(0), None, 0)
             cos_sim_c = emd_dis(point1_emd, None, point2_emd.unsqueeze(0), None, 1)
             positives.append([cos_sim, cos_sim_c])
         else:
@@ -89,10 +91,12 @@ def gen_factor(gallery_feature, gallery_base, gallery_pid, metric = 'cosine'):
         indexdiff = np.where(g_camids != g_camids[index_arr_m[0]])[0]
         indexdiff_r = np.intersect1d(index_arr_n,indexdiff)
         point2 = gallery_feature[indexdiff_r[0]].view(1, -1)
+        centers = torch.mean(gallery_feature[indexdiff_r[1:]], 0)
         point2_emd = gallery_base[indexdiff_r[0]]
-        centers = centers.view(1, -1)
+        centers_emd = torch.mean(gallery_base[indexdiff_r[1:]], 0)
+        #centers = centers.view(1, -1)
         if metric == 'cosine':
-            cos_sim = emd_dis(point1.squeeze(0), None, point2, None,  0)
+            cos_sim = emd_dis(point1.squeeze(0), None, centers.unsqueeze(0), None,  0)
             cos_sim_c = emd_dis(point1_emd, None, point2_emd.unsqueeze(0), None, 1)
             negatives.append([cos_sim, cos_sim_c])
         else:
@@ -106,8 +110,8 @@ def gen_factor(gallery_feature, gallery_base, gallery_pid, metric = 'cosine'):
     print(len(positives), len(negatives))
     positives = np.array(positives)
     negatives = np.array(negatives)
-    # np.save('/home/ceec/chuong/reid/logistic_data/positives_emdl4.npy', positives)
-    # np.save('/home/ceec/chuong/reid/logistic_data/negatives_emdl4.npy', negatives)
+    np.save('/home/ceec/chuong/reid/logistic_data/positives_emd_ct.npy', positives)
+    np.save('/home/ceec/chuong/reid/logistic_data/negatives_emd_ct.npy', negatives)
     
     
     #if have file
@@ -141,10 +145,6 @@ labels_gallery = np.load('/home/ceec/chuong/reid/rerank_person/g_pids_train.npy'
 
 embeddings_gallery = torch.FloatTensor(np.load(
     '/home/ceec/chuong/reid/rerank_person/gf_train.npy'))
-embeddings_query = torch.FloatTensor(np.load(
-    '/home/ceec/chuong/reid/rerank_person/qf_train.npy'))
-q_base = torch.FloatTensor(np.load(
-            '/home/ceec/chuong/reid/rerank_person/q_layer4.npy'))
 g_base = torch.FloatTensor(np.load(
     '/home/ceec/chuong/reid/rerank_person/g_layer4.npy'))
 

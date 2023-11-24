@@ -1,9 +1,10 @@
 MODEL:
-  PRETRAIN_CHOICE: 'resnet50_ibn_a'
-  PRETRAIN_PATH: '/home/ceec/chuong/reid-strong-baseline/weights/Veri776/MBR_4B/best_mAP.pt'
+  PRETRAIN_CHOICE: 'self'
+  PRETRAIN_PATH: ''
   METRIC_LOSS_TYPE: 'triplet_center'
   IF_LABELSMOOTH: 'on'
   IF_WITH_CENTER: 'yes'
+  DEVICE_ID: "('0')"
   NAME: 'resnet50_ibn_a'
 
 
@@ -18,6 +19,7 @@ INPUT:
 
 DATASETS:
   NAMES: ('veri')
+  ROOT_DIR: '/home/ceec/huycq/track2_aicity_2021/lib/data/datasets'
 
 DATALOADER:
   SAMPLER: 'softmax_triplet'
@@ -59,11 +61,10 @@ SOLVER:
 TEST:
   IMS_PER_BATCH: 128
   RE_RANKING: 'no'
-  METRICS: "" 
   WEIGHT: "/home/ceec/chuong/reid/veri_weights/final_2_80.pth"
   NECK_FEAT: 'after'
   FEAT_NORM: 'yes'
   LOAD_DATA: True
 
-OUTPUT_DIR: "veri_weights"
+OUTPUT_DIR: "/home/ceec/chuong/reid/output_very"
 

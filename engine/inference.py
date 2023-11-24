@@ -54,6 +54,7 @@ def create_supervised_evaluator(model, metrics,
 
 def inference(
         cfg,
+        metric,
         model,
         val_loader,
         num_query
@@ -64,7 +65,7 @@ def inference(
     logger.info("Enter inferencing")
     if cfg.TEST.RE_RANKING == 'no':
         print("Create evaluator")
-        evaluator = create_supervised_evaluator(model, metrics={'r1_mAP': R1_mAP(num_query, max_rank=50, feat_norm=cfg.TEST.FEAT_NORM, metrics=cfg.TEST.METRICS, load_data = cfg.TEST.LOAD_DATA)},
+        evaluator = create_supervised_evaluator(model, metrics={'r1_mAP': R1_mAP(num_query, max_rank=50, feat_norm=cfg.TEST.FEAT_NORM, metrics=metric, load_data = cfg.TEST.LOAD_DATA)},
                                                 device=device)
     elif cfg.TEST.RE_RANKING == 'yes':
         print("Create evaluator for reranking")
@@ -73,7 +74,6 @@ def inference(
     else:
         print("Unsupported re_ranking config. Only support for no or yes, but got {}.".format(cfg.TEST.RE_RANKING))
     evaluator.run(val_loader)
-    print("here1")
     cmc, mAP = evaluator.state.metrics['r1_mAP']
     logger.info('Validation Results')
     logger.info("mAP: {:.1%}".format(mAP))

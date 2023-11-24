@@ -26,6 +26,7 @@ def main():
     )
     parser.add_argument("opts", help="Modify config options using the command-line", default=None,
                         nargs=argparse.REMAINDER)
+    parser.add_argument("--metric", type=str, help="Choose the metric in [\"cosine\", \"emd\", \"centroid\", \"cs+emd\", \"cs+ct\", \"emd+ct\", \"cs+ct+emd\"]", default="cosine")
 
     args = parser.parse_args()
 
@@ -59,7 +60,7 @@ def main():
     print(cfg.TEST.WEIGHT)
     model.load_param(cfg.TEST.WEIGHT)
 
-    inference(cfg, model, val_loader, num_query)
+    inference(cfg, args.metric, model, val_loader, num_query)
 
 
 if __name__ == '__main__':

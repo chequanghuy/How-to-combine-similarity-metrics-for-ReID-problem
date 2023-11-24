@@ -156,6 +156,7 @@ class Baseline(nn.Module):
         layer4, layer3 = self.base(x)
         global_feat = self.gap(layer4)  # (b, 2048, 1, 1)
         global_feat = global_feat.view(global_feat.shape[0], -1)  # flatten to (bs, 2048)
+        N, C, _, _ = layer4.size()
         if self.neck == 'no':
             feat = global_feat
         elif self.neck == 'bnneck':
@@ -167,7 +168,7 @@ class Baseline(nn.Module):
         else:
             if self.neck_feat == 'after':
                 # print("Test with feature after BN")
-                return feat, layer4
+                return feat, layer4.view(N, C, -1)
             else:
                 # print("Test with feature before BN")
                 return global_feat

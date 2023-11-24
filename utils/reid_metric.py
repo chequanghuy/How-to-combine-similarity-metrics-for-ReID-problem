@@ -135,6 +135,7 @@ def fusion_emd(qbase,qf, g_ct, gbase, gf, k, metric=''):
     #emd_sim = torch.tensor([])
     #dfusion = torch.tensor([])
     dismat = torch.tensor([], device='cuda:0')
+    
     for idx in tqdm(range(qbase.size()[0])):
         anchor = qf[idx]
         sim = emd_dis(anchor,None, gf,None, 0) 

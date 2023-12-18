@@ -82,6 +82,7 @@ def create_supervised_trainer_with_center(model, center_criterion, optimizer, op
         img = img.to(device) if torch.cuda.device_count() >= 1 else img
         target = target.to(device) if torch.cuda.device_count() >= 1 else target
         score, feat = model(img)
+        print(target)
         loss = loss_fn(score, feat, target)
         # print("Total loss is {}, center loss is {}".format(loss, center_criterion(feat, target)))
         loss.backward()

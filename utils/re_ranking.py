@@ -26,7 +26,7 @@ import numpy as np
 import torch
 
 
-def re_ranking(probFea, galFea, k1, k2, lambda_value, local_distmat=None, only_local=False):
+def re_ranking(probFea, galFea,  k1, k2, lambda_value, local_distmat=None, only_local=False):
     # if feature vector is numpy, you should use 'torch.tensor' transform it to tensor
     query_num = probFea.size(0)
     all_num = query_num + galFea.size(0)
@@ -42,6 +42,7 @@ def re_ranking(probFea, galFea, k1, k2, lambda_value, local_distmat=None, only_l
         del feat
         if not local_distmat is None:
             original_dist = original_dist + local_distmat
+    # original_dist = fusion.cpu().numpy()
     gallery_num = original_dist.shape[0]
     original_dist = np.transpose(original_dist / np.max(original_dist, axis=0))
     V = np.zeros_like(original_dist).astype(np.float16)

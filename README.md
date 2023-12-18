@@ -11,5 +11,3 @@ You can modify `scripts/test.sh` to change metric options at `TEST.METRICS "('')
 - `centroid` for using only centroid as a metric.
 
 We using `cosine` as default metric.
-
-

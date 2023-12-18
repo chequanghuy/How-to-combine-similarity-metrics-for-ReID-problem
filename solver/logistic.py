@@ -12,7 +12,15 @@ import random
 from tqdm import tqdm
 import torch
 import torch.nn.functional as F
-def gen_factor(gallery_pid, gallery_feature, g_camids, metric='cosine'):
+def search(camid, bag, k):
+    count = 0
+    for i in bag:
+        if (i==camid): 
+            count+=1
+        if (count==k):
+            return False
+    return True
+def gen_factor(gallery_pid, gallery_feature, metric='cosine'):
     positives = []
     negatives = []
     #if do not have file
@@ -48,6 +56,7 @@ def gen_factor(gallery_pid, gallery_feature, g_camids, metric='cosine'):
 
         random.shuffle(index_arr_m)
         random.shuffle(index_arr_n)
+        
         centers = torch.mean(gallery_feature[index_arr_n[1:]], 0)
 
         point1 = F.normalize(
@@ -64,19 +73,19 @@ def gen_factor(gallery_pid, gallery_feature, g_camids, metric='cosine'):
             norm_sim = float(torch.cdist(point1, point2, p=2)[0][0])
             norm_sim_c = float(torch.cdist(point1, centers, p=2)[0][0])
             negatives.append([norm_sim, norm_sim_c])
-        negatives.append([norm_sim,norm_sim_c])
+    #     #negatives.append([norm_sim,norm_sim_c])
 
 
     print(len(positives), len(negatives))
-    positives = np.array(positives)
-    negatives = np.array(negatives)
-    np.save('logistic_data/positives.npy', positives)
-    np.save('logistic_data/negatives.npy', negatives)
+    # positives = np.array(positives)
+    # negatives = np.array(negatives)
+    # np.save('/home/ceec/chuong/CLIP-ReID/datasets/positives.npy', positives)
+    # np.save('/home/ceec/chuong/CLIP-ReID/datasets/negatives.npy', negatives)
     
     
     #if have file
-    # positives = np.load('logistic_data/positives_un.npy') 
-    # negatives = np.load('logistic_data/negatives_un.npy') 
+    # positives = np.load('/home/ceec/chuong/CLIP-ReID/datasets/positives.npy') 
+    # negatives = np.load('/home/ceec/chuong/CLIP-ReID/datasets/negatives.npy') 
 
     # # print(positives.shape, negatives.shape)
     Y = np.concatenate(
@@ -88,23 +97,16 @@ def gen_factor(gallery_pid, gallery_feature, g_camids, metric='cosine'):
     # scaled_X = scale.fit_transform(X)
     
 
-    logistic_regression = LogisticRegression(solver='lbfgs', max_iter=100000, C=19)
+    logistic_regression = LogisticRegression(solver='lbfgs', max_iter=100000, C=90)
     model = logistic_regression.fit(X, Y)
     print(model.score(X, Y), model.score(positives, np.ones(len(positives))),
           model.score(negatives, np.zeros(len(negatives))))
     print(model.coef_[0][0], model.coef_[0][1], model.intercept_[0])
     return model.coef_[0][0], model.coef_[0][1], model.intercept_
-q_camids = np.load('/home/ceec/chuong/reid-strong-baseline/rerank_person/q_camids_train.npy')
-g_camids = np.load(
-    '/home/ceec/chuong/reid-strong-baseline/rerank_person/g_camids_train.npy')
-labels_query = np.load(
-    '/home/ceec/chuong/reid-strong-baseline/rerank_person/q_pids_train.npy')
 
-labels_gallery = np.load('/home/ceec/chuong/reid-strong-baseline/rerank_person/g_pids_train.npy')
+labels_gallery = np.load('/home/ceec/chuong/reid/baseline_train_person/pids.npy')
 
 embeddings_gallery = torch.FloatTensor(np.load(
-    '/home/ceec/chuong/reid-strong-baseline/rerank_person/gf_train.npy'))
-embeddings_query = torch.FloatTensor(np.load(
-    '/home/ceec/chuong/reid-strong-baseline/rerank_person/qf_train.npy'))
-
-gen_factor(labels_gallery, embeddings_gallery, g_camids)
+    '/home/ceec/chuong/reid/baseline_train_person/feats.npy'))
+print(labels_gallery)
+gen_factor(labels_gallery, embeddings_gallery)

@@ -1,0 +1,1 @@
+python3 tools/train_logistic.py --config_file='configs/veri.yml' --metric='cosine'

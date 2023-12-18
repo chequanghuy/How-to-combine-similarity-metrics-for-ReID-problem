@@ -15,7 +15,7 @@ from torch.backends import cudnn
 sys.path.append('.')
 from config import cfg
 from data import make_data_loader
-from engine.inference import inference
+from engine.logistic_trainer import do_train_logistic
 from modeling import build_model
 from utils.logger import setup_logger
 from torch import nn
@@ -34,13 +34,11 @@ def main():
     )
     parser.add_argument("opts", help="Modify config options using the command-line", default=None,
                         nargs=argparse.REMAINDER)
-    parser.add_argument("--metric", type=str, help="Choose the metric in [\"cosine\", \"centroid\", \"cs+ct\"]", default="cosine")
-    parser.add_argument('--all_cameras', action='store_true', help='Considering all cameras')
-    parser.add_argument('--uncertainty', action='store_true', help=' Uncertain centroid calculation')
-    parser.add_argument('--weighted', action='store_true', help='Use weighted centroid calculation when uncertainty is provided')
-    parser.add_argument('--k', nargs='?', type=int, default=5, help='Top-k similarity base on uncertainty')
+    parser.add_argument("--metric", type=str, help="Choose the metric in [\"cosine\", \"euclidean\"]", default="cosine")
+
 
     args = parser.parse_args()
+
     num_gpus = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
 
     if args.config_file != "":
@@ -66,11 +64,11 @@ def main():
         os.environ['CUDA_VISIBLE_DEVICES'] = cfg.MODEL.DEVICE_ID
     cudnn.benchmark = True
 
-    train_loader, val_loader, num_query, num_classes = make_data_loader(cfg)
+    train_loader, _, num_query, num_classes = make_data_loader(cfg)
     model = build_model(cfg, num_classes)
     model.load_param(cfg.TEST.WEIGHT)
 
-    inference(cfg, args, model, val_loader, num_query)
+    do_train_logistic(cfg, args.metric, model, train_loader, num_query)
 
 
 if __name__ == '__main__':

@@ -10,11 +10,11 @@ import torch.nn as nn
 from ignite.engine import Engine
 from ignite.contrib.handlers.tqdm_logger import ProgressBar
 
-from utils.reid_metric import R1_mAP, R1_mAP_reranking
+from utils.logistic import Logistic
 
 from torch import nn
 
-def create_supervised_evaluator(model, metrics,
+def create_supervised_logistic(model, metrics,
                                 device=None):
     """
     Factory function for creating an evaluator for supervised models
@@ -36,13 +36,13 @@ def create_supervised_evaluator(model, metrics,
     def _inference(engine, batch):
         model.eval()
         with torch.no_grad():
-            data, pids, camids = batch
+            data, ids = batch
             #print(torch.cuda.device_count())
             #data = data.to(device) #if torch.cuda.device_count() >= 1 else data
             data = data.to(device)
             feat = model(data)
             #print("Loading")
-            return feat, pids, camids
+            return feat, ids
 
     engine = Engine(_inference)
     for name, metric in metrics.items():
@@ -53,31 +53,24 @@ def create_supervised_evaluator(model, metrics,
     return engine
 
 
-def inference(
+def do_train_logistic(
         cfg,
-        args,
+        metric,
         model,
-        val_loader,
+        train_loader,
         num_query
 ):
     device = cfg.MODEL.DEVICE
 
     logger = logging.getLogger("reid_baseline.inference")
-    logger.info("Enter inferencing")
-    if cfg.TEST.RE_RANKING == 'no':
-        print("Create evaluator")
-        evaluator = create_supervised_evaluator(model, metrics={'r1_mAP': R1_mAP(num_query, max_rank=50, \
-                                feat_norm=cfg.TEST.FEAT_NORM, metrics=args.metric, all_cameras=args.all_cameras, uncertainty=args.uncertainty, weighted=args.weighted, k=args.k)},
-                                                device=device)
-    elif cfg.TEST.RE_RANKING == 'yes':
-        print("Create evaluator for reranking")
-        evaluator = create_supervised_evaluator(model, metrics={'r1_mAP': R1_mAP_reranking(num_query, max_rank=50, feat_norm=cfg.TEST.FEAT_NORM)},
-                                                device=device)
-    else:
-        print("Unsupported re_ranking config. Only support for no or yes, but got {}.".format(cfg.TEST.RE_RANKING))
-    evaluator.run(val_loader)
-    cmc, mAP = evaluator.state.metrics['r1_mAP']
-    logger.info('Validation Results')
-    logger.info("mAP: {:.1%}".format(mAP))
-    for r in [1, 5, 10]:
-        logger.info("CMC curve, Rank-{:<3}:{:.1%}".format(r, cmc[r - 1]))
+    print("Create trainer for logistic")
+    evaluator = create_supervised_logistic(model, metrics={'Logistic': Logistic(num_query, feat_norm=cfg.TEST.FEAT_NORM, metrics=metric)},
+                                            device=device)
+    evaluator.run(train_loader)
+    score, score_pos, score_neg, alpha, beta = evaluator.state.metrics['Logistic']
+    logger.info('Logistic Result:')
+    logger.info("Score: {:.1%}".format(score))
+    logger.info("Positive score: {:.1%}".format(score_pos))
+    logger.info("Negative score: {:.1%}".format(score_neg))
+    logger.info("Alpha value: {}".format(alpha))
+    logger.info("Beta value: {}".format(beta))

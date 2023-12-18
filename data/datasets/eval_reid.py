@@ -22,7 +22,6 @@ def eval_func(indices, q_pids, g_pids, q_camids, g_camids, metrics = "", max_ran
         print("Note: number of gallery samples is quite small, got {}".format(num_g))
     #indices = np.argsort(distmat, axis=1)
     matches = (g_pids[indices] == q_pids[:, np.newaxis]).astype(np.int32)
-    print(matches)
     # compute cmc curve for each query
     all_cmc = []
     all_AP = []
@@ -37,16 +36,10 @@ def eval_func(indices, q_pids, g_pids, q_camids, g_camids, metrics = "", max_ran
         # remove gallery samples that have the same pid and camid with query
         order = indices[q_idx]
         if respect_camids:
-            if (metrics == "centroid"):
-                remove = [
-                    (gpid == q_pid) & (q_camid in gcamid)
-                    for gpid, gcamid in zip(g_pids[order], g_camids[order])
-                ]
-            else:
-                remove = [
-                    (gpid == q_pid) & (q_camid == gcamid)
-                    for gpid, gcamid in zip(g_pids[order], g_camids[order])
-                ]
+            remove = [
+                (gpid == q_pid) & (q_camid == gcamid)
+                for gpid, gcamid in zip(g_pids[order], g_camids[order])
+            ]
         else:
             remove = (g_pids[order] == q_pid) & (g_camids[order] == q_camid)
         keep = np.invert(remove)

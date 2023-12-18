@@ -1,4 +1,3 @@
-# Experiment all tricks without center loss with re-ranking : 256x128-bs16x4-warmup10-erase0_5-labelsmooth_on-laststride1-bnneck_on-triplet_centerloss0_0005
 # Dataset 1: market1501
 # imagesize: 256x128
 # batchsize: 16x4
@@ -8,5 +7,5 @@
 # last stride 1
 # bnneck on
 # with center loss
-# with re-ranking
-python3 tools/test.py --config_file='configs/veri.yml' --metric='cosine'
+
+python3 tools/test.py --config_file='configs/market1501.yml' --metric='cs+ct'

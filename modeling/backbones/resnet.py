@@ -127,10 +127,10 @@ class ResNet(nn.Module):
 
         x = self.layer1(x)
         x = self.layer2(x)
-        x1 = self.layer3(x)
-        x = self.layer4(x1)
+        x = self.layer3(x)
+        x = self.layer4(x)
 
-        return x, x1
+        return x
 
     def load_param(self, model_path):
         param_dict = torch.load(model_path)

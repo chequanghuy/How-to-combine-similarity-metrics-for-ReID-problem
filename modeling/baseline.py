@@ -51,7 +51,6 @@ class Baseline(nn.Module):
                                block=BasicBlock,
                                layers=[3, 4, 6, 3])
         elif model_name == 'resnet50':
-            print(2)
             self.base = ResNet(last_stride=last_stride,
                                block=Bottleneck,
                                layers=[3, 4, 6, 3])
@@ -127,12 +126,10 @@ class Baseline(nn.Module):
                               dropout_p=0.2, 
                               last_stride=last_stride)
         elif model_name == 'resnet50_ibn_a':
-            print(1)
             self.base = resnet50_ibn_a(last_stride)
-        print(pretrain_choice)
-        if pretrain_choice == 'imagenet':
-            self.base.load_param(model_path)
-            print('Loading pretrained ImageNet model......')
+        # if pretrain_choice == 'imagenet':
+        #     self.base.load_param(model_path)
+        #     print('Loading pretrained ImageNet model......')
 
         self.gap = nn.AdaptiveAvgPool2d(1)
         # self.gap = nn.AdaptiveMaxPool2d(1)
@@ -151,12 +148,14 @@ class Baseline(nn.Module):
 
             self.bottleneck.apply(weights_init_kaiming)
             self.classifier.apply(weights_init_classifier)
-
+    
+    
     def forward(self, x):
-        layer4, layer3 = self.base(x)
-        global_feat = self.gap(layer4)  # (b, 2048, 1, 1)
+        x1 = self.base(x)
+        global_feat = self.gap(x1)  # (b, 2048, 1, 1)
+
         global_feat = global_feat.view(global_feat.shape[0], -1)  # flatten to (bs, 2048)
-        N, C, _, _ = layer4.size()
+
         if self.neck == 'no':
             feat = global_feat
         elif self.neck == 'bnneck':
@@ -168,20 +167,18 @@ class Baseline(nn.Module):
         else:
             if self.neck_feat == 'after':
                 # print("Test with feature after BN")
-                return feat, layer4.view(N, C, -1)
+                return feat
             else:
                 # print("Test with feature before BN")
                 return global_feat
 
     def load_param(self, trained_path):
-        #print(trained_path)
+        # print(trained_path)
         param_dict = torch.load(trained_path)
-        #print(param_dict)
         for i in param_dict:
             #print(i)
             if 'classifier' in i:
                 continue
             #print(self.state_dict()['model.0.weight'])
-            
             #self.state_dict()['base.' + i].copy_(param_dict[i])
             self.state_dict()[i].copy_(param_dict[i])

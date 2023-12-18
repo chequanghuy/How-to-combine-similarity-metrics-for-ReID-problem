@@ -1,12 +1,11 @@
 MODEL:
-  PRETRAIN_CHOICE: 'resnet50'
+  PRETRAIN_CHOICE: 'self'
   PRETRAIN_PATH: ''
   METRIC_LOSS_TYPE: 'triplet_center'
   IF_LABELSMOOTH: 'on'
   IF_WITH_CENTER: 'yes'
   DEVICE_ID: "('0')"
   NAME: 'resnet50'
-
 
 
 
@@ -66,5 +65,5 @@ TEST:
   FEAT_NORM: 'yes'
   LOAD_DATA: True
 
-OUTPUT_DIR: "/home/ceec/chuong/reid/output_emd1"
+OUTPUT_DIR: "/home/ceec/chuong/reid/output_test"
 

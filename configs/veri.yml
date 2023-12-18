@@ -66,5 +66,5 @@ TEST:
   FEAT_NORM: 'yes'
   LOAD_DATA: True
 
-OUTPUT_DIR: "/home/ceec/chuong/reid/output_very"
+OUTPUT_DIR: "/home/ceec/chuong/reid/output_very_fusion_certainty"
 

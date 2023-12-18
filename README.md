@@ -1,13 +1,26 @@
 # -HOW-TO-COMBINE-SIMILARITY-METRICS-FOR-RE-IDENTIFICATION-PROBLEM-
 
+## Introduction
+
+
+## Prerequisites
+
+Before running the script, make sure you have the following dependencies installed:
+
+- [pytorch>=0.4](https://pytorch.org/)
+- torchvision
+- [ignite=0.1.2](https://github.com/pytorch/ignite) 
+- [yacs](https://github.com/rbgirshick/yacs)
+
 ## Test
 
 ```bash
-bash scripts/test.sh
+python tools/test.py --config_file "configs/market1501.yml" --metric='cs+ct'
 ```
-You can modify `scripts/test.sh` to change metric options at `TEST.METRICS "('')"`. Options are as follows:
-- `fusion_emd` for using fusion (cosine + EMD) as a metric.
-- `fusion_centroid` for using fusion (cosine + centroid) as a metric.
-- `centroid` for using only centroid as a metric.
-
-We using `cosine` as default metric.
+#### Arguments:
+- `--config_file`: Path to the config file.
+- `--metric`: Choose the metric in ["cosine", "centroid", "cs+ct"]. Default is "cosine".
+- `--all_cameras`: Considering all cameras. (Optional)
+- `--uncertainty`: Enable uncertain centroid calculation. (Optional)
+- `--weighted`: Use weighted centroid calculation when uncertainty is provided. (Optional)
+- `--k`: Top-k similarity based on uncertainty. Default is 5.

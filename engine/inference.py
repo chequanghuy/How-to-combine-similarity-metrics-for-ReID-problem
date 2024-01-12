@@ -125,7 +125,7 @@ def inference(
     if cfg.TEST.RE_RANKING == 'no':
         print("Create evaluator")
         evaluator = create_supervised_evaluator(model, metrics={'r1_mAP': R1_mAP(cfg, val_set, num_query, alpha, beta, max_rank=50, \
-                                feat_norm=cfg.TEST.FEAT_NORM, metrics=args.metric, all_cameras=args.all_cameras, \
+                                feat_norm=cfg.TEST.FEAT_NORM, metrics=args.metric, \
                                     uncertainty=args.uncertainty, weighted=args.weighted, k=args.k, vis_top=args.vis_top)},
                                                 device=device)
         # r1_map = R1_mAP(cfg, val_set, num_query, alpha, beta, max_rank=50, \

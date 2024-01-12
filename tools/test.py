@@ -35,7 +35,6 @@ def main():
     parser.add_argument("opts", help="Modify config options using the command-line", default=None,
                         nargs=argparse.REMAINDER)
     parser.add_argument("--metric", type=str, help="Choose the metric in [\"cosine\", \"centroid\", \"cs+ct\"]", default="cosine")
-    parser.add_argument('--all_cameras', action='store_true', help='Considering all cameras')
     parser.add_argument('--uncertainty', action='store_true', help=' Uncertain centroid calculation')
     parser.add_argument('--weighted', action='store_true', help='Use weighted centroid calculation when uncertainty is provided')
     parser.add_argument('--k', nargs='?', type=int, default=5, help='Top-k similarity base on uncertainty')

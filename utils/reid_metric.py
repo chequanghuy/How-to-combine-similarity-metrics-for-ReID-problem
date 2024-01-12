@@ -65,13 +65,12 @@ def get_dist_func(func_name="euclidean"):
     return dist_func
 
 class R1_mAP(Metric):
-    def __init__(self, cfg, val_set, num_query, alpha, beta, max_rank=50, feat_norm='yes', metrics="", all_cameras = False, uncertainty=False, weighted=False, k=5, vis_top=0):
+    def __init__(self, cfg, val_set, num_query, alpha, beta, max_rank=50, feat_norm='yes', metrics="", uncertainty=False, weighted=False, k=5, vis_top=0):
         super(R1_mAP, self).__init__()
         self.num_query = num_query
         self.max_rank = max_rank
         self.feat_norm = feat_norm
         self.metrics = metrics
-        self.all_cameras = all_cameras
         self.uncertainty = uncertainty
         self.weighted = weighted
         self.k = k
@@ -93,7 +92,7 @@ class R1_mAP(Metric):
         self.pids.extend(np.asarray(pid))
         self.camids.extend(np.asarray(camid))
 
-    def create_centroids_uncertainty(self, q_camids, g_camids, q_ids, g_ids, qf, gf, k, all_cameras=False, weighted_knear=False):
+    def create_centroids_uncertainty(self, q_camids, g_camids, q_ids, g_ids, qf, gf, k, weighted_knear=False):
         if weighted_knear:
             print("Apply weighted K-nearest...")
         self.num_query = len(qf)
@@ -155,7 +154,7 @@ class R1_mAP(Metric):
         return simmat
     
 
-    def create_centroids_certainty(self, q_camids, g_camids, labels_query, labels_gallery, embeddings_query, embeddings_gallery, all_cameras=False):
+    def create_centroids_certainty(self, q_camids, g_camids, labels_query, labels_gallery, embeddings_query, embeddings_gallery):
         #print(embeddings_gallery[0])
         all_sim_qc = []
         for qf,q_id,q_camid in tzip(embeddings_query,labels_query,q_camids):
@@ -206,11 +205,11 @@ class R1_mAP(Metric):
                 # distmat = torch.FloatTensor(np.load(
                 #     '/home/ceec/chuong/reid/dismat.npy'))
                 simmat = \
-                       self.create_centroids_uncertainty(q_camids, g_camids, q_pids, g_pids, qf, gf, k=self.k, all_cameras=self.all_cameras, weighted_knear=self.weighted)
+                       self.create_centroids_uncertainty(q_camids, g_camids, q_pids, g_pids, qf, gf, k=self.k, weighted_knear=self.weighted)
             else:
                 print("Calculating centroid base on certainty...")
                 all_sim_qc = \
-                        self.create_centroids_certainty(q_camids, g_camids, q_pids, g_pids, qf, gf, all_cameras=self.all_cameras)
+                        self.create_centroids_certainty(q_camids, g_camids, q_pids, g_pids, qf, gf)
                 norm_sim = qf @ gf.t()
                 simmat = self.alpha*norm_sim + self.beta*all_sim_qc   
             #np.save("/home/ceec/chuong/reid/simmat_weighted.npy", np.asarray(simmat.cpu()))
@@ -218,7 +217,7 @@ class R1_mAP(Metric):
         elif (self.metrics == "centroid"):
             print("Using centroid as metric...")
             simmat = \
-                self.create_centroids_certainty(q_camids, g_camids, q_pids, g_pids, qf, gf, all_cameras=self.all_cameras)
+                self.create_centroids_certainty(q_camids, g_camids, q_pids, g_pids, qf, gf)
 
         elif (self.metrics == "cosine"):
             print("Using cosine as metric...")

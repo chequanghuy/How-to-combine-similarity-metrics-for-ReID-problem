@@ -15,7 +15,7 @@ Before running the script, make sure you have the following dependencies install
 ## Test
 
 ```bash
-python tools/test.py --config_file "configs/market1501.yml" --metric='cs+ct'
+python3 tools/test.py --config_file='configs/market1501.yml' --metric='cs+ct' --coeff_method='logistic' --rand_seed 0 --k 5 --n_data 1000 
 ```
 #### Arguments:
 - `--config_file`: Path to the config file.
@@ -24,3 +24,10 @@ python tools/test.py --config_file "configs/market1501.yml" --metric='cs+ct'
 - `--uncertainty`: Enable uncertain centroid calculation. (Optional)
 - `--weighted`: Use weighted centroid calculation when uncertainty is provided. (Optional)
 - `--k`: Top-k similarity based on uncertainty. Default is 5.
+- `--vis_top`: This argument determines the number of top_k values to be visualized. Default is 0.
+- `--coeff_method`: Specify the method to be used for training. Options are "logistic" or "svm". Default is "logistic".
+- `--rand_seed`: Set a specific random seed for reproducibility. Default is 0.
+
+
+
+

@@ -8,13 +8,17 @@ import numpy as np
 import torch
 from ignite.metrics import Metric
 from collections import defaultdict
-import torch.nn.functional as F
 from data.datasets.eval_reid import eval_func
 from .re_ranking import re_ranking
-import random
 from tqdm import tqdm
-from sklearn.linear_model import LogisticRegression
-
+from tqdm.contrib import tzip
+from .visrank import visualize_ranked_results
+import os
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.naive_bayes import BernoulliNB
 
 def get_euclidean(x, y, **kwargs):
     m = x.shape[0]
@@ -61,7 +65,7 @@ def get_dist_func(func_name="euclidean"):
     return dist_func
 
 class R1_mAP(Metric):
-    def __init__(self, num_query, max_rank=50, feat_norm='yes', metrics="", all_cameras = False, uncertainty=False, weighted=False, k=5):
+    def __init__(self, cfg, val_set, num_query, alpha, beta, max_rank=50, feat_norm='yes', metrics="", all_cameras = False, uncertainty=False, weighted=False, k=5, vis_top=0):
         super(R1_mAP, self).__init__()
         self.num_query = num_query
         self.max_rank = max_rank
@@ -71,7 +75,13 @@ class R1_mAP(Metric):
         self.uncertainty = uncertainty
         self.weighted = weighted
         self.k = k
+        self.vis_top = vis_top
+        self.cfg = cfg
+        self.val_set = val_set
         self.dist_func = get_dist_func("cosine")
+        self.alpha = alpha
+        self.beta = beta
+
     def reset(self):
         self.feats = []
         self.pids = []
@@ -85,165 +95,101 @@ class R1_mAP(Metric):
 
     def create_centroids_uncertainty(self, q_camids, g_camids, q_ids, g_ids, qf, gf, k, all_cameras=False, weighted_knear=False):
         if weighted_knear:
-            print("Apply weighted K-nearest")
+            print("Apply weighted K-nearest...")
         self.num_query = len(qf)
         camid2idx = defaultdict(list)
+        index_g = []
         for idx, camid in enumerate(g_camids):
+            index_g.append(idx)
             camid2idx[camid].append(idx)
 
         camid2idx_q = defaultdict(list)
         for idx, camid in enumerate(q_camids):
-            camid2idx_q[camid] = idx
-        unique_camids = sorted(np.unique(list(camid2idx.keys())))
-        centroids_embeddings = []
-        group_indices = torch.tensor([])
-        for i in range(len(g_ids)):
-            curr_camid = g_camids[i]
-            used_camid = np.setdiff1d(unique_camids, curr_camid)
-            sim = torch.mm(gf[i].view(1, -1), gf.t()).squeeze()
-            # sim_exp_i = torch.cat((sim[:i], sim[i+1:]))
-            group_indices = torch.tensor([])
-            group_sim = torch.tensor([])
-            if not all_cameras:
-                check_camid = used_camid
-            else:
-                check_camid = unique_camids
-            for camid in check_camid:
-                inds = camid2idx[camid]
-                # if not respect_camids:
-                #     if (camid==curr_camid):
-                #         inds = inds[inds != i]
-                simmat_camid = sim[inds]
-                inds = torch.tensor(inds).view(-1)
-                simmat_sort = np.argsort(1-simmat_camid)
-                simmat_sort_k = simmat_sort[:k]
-                group_indices = torch.cat((group_indices, inds[simmat_sort_k]))
-                if weighted_knear:
-                    group_sim = torch.cat((group_sim, sim[inds[simmat_sort_k]]))
-            group_indices = np.asarray(group_indices.cpu())
-            
+            camid2idx_q[camid].append(idx)
+        unique_camids_q = sorted(np.unique(list(camid2idx_q.keys())))
+        simmat = torch.tensor([])
+        dict = {}
+
+        #clf = SVC(kernel='poly', probability=True)
+        # from sklearn.kernel_ridge import KernelRidge
+        # X = np.load("/home/ceec/chuong/reid/X_train.npy")
+        # Y = np.load("/home/ceec/chuong/reid/Y_train.npy")
+        
+        sim_gg = 0.8/(1+ torch.cdist(gf, gf, p=2)) +  0.55/(1+ torch.cdist(gf, gf, p=2))
+        for indx in tqdm(unique_camids_q):
+            ind_qcamid = camid2idx[indx] # index of gallery feature has camid = q_camid
+
+            ind_exq = np.setdiff1d(index_g, ind_qcamid) #index of gallery exp camid = q_camid
+            gf_new = gf[ind_exq] # gallery faetureas with index = ind_exp
+            sim_gg_exq = sim_gg[:, ind_exq] # similarity between galery features and gallery fetures exp q_camids
+            sim_gg_argsort = np.argsort(1-sim_gg_exq, axis = 1) 
+            sim_gg_argtopk = sim_gg_argsort[:, :k] #top_k index
+
             if weighted_knear:
-                sum = torch.sum(group_sim)
-                weight = group_sim/sum
-                centroids_embs = weight.view(-1, 1) * gf[group_indices]
-                centroids_embs = torch.sum(centroids_embs, dim=0).view(1, -1)
-            else:    
-                centroids_embs = gf[group_indices]
-                centroids_embs = self._calculate_centroids(centroids_embs, dim=0)
-
-            centroids_embeddings.append(centroids_embs.detach().cpu())
-        centroids_embeddings = torch.stack(centroids_embeddings).squeeze()
-        return centroids_embeddings.cpu()
-    
-
-    def validation_create_centroids(self, q_camids, g_camids, labels_query, labels_gallery, embeddings_query, embeddings_gallery, all_cameras=False):
-        #print(embeddings_gallery[0])
-        self.num_query = len(embeddings_query)
-        #print("num query", self.num_query)
-        labels2idx = defaultdict(list)
-        for idx, label in enumerate(labels_gallery):
-            labels2idx[label].append(idx)
-
-        labels2idx_q = defaultdict(list)
-        for idx, label in enumerate(labels_query):
-            labels2idx_q[label].append(idx)
-        unique_labels = sorted(np.unique(list(labels2idx.keys())))
-        labels = np.array(list(labels2idx.keys()))
-        centroids_embeddings = []
-        centroids_labels = []
-
-        if not all_cameras:
-            centroids_camids = []
-            query_camid = q_camids
-
-        # Create centroids for each pid seperately
-        for label in unique_labels:
-            cmaids_combinations = set()
-            inds = labels2idx[label]
-            inds_q = labels2idx_q[label]
-            if not all_cameras:
-                selected_camids_g = g_camids[inds]
-
-                selected_camids_q = q_camids[inds_q]
-                unique_camids = sorted(np.unique(selected_camids_q))
-
-                for current_camid in unique_camids:
-                    # We want to select all gallery images that comes from DIFFERENT cameraId
-                    camid_inds = np.where(
-                        selected_camids_g != current_camid)[0]
-                    if camid_inds.shape[0] == 0:
-                        continue
-                    used_camids = sorted(
-                        np.unique(
-                            [cid for cid in selected_camids_g if cid != current_camid]
-                        )
-                    )
-                    if tuple(used_camids) not in cmaids_combinations:
-                        cmaids_combinations.add(tuple(used_camids))
-                        centroids_emb = embeddings_gallery[inds][camid_inds]
-                        centroids_emb = self._calculate_centroids(
-                            centroids_emb, dim=0)
-                        centroids_embeddings.append(
-                            centroids_emb.detach().cpu())
-                        centroids_camids.append(used_camids)
-                        centroids_labels.append(label)
+                sim_gg_topk = sim_gg_exq[torch.arange(sim_gg_exq.size(0)).unsqueeze(1), sim_gg_argtopk] #top_k sim
+                sum_sim_topk = torch.sum(sim_gg_topk, dim=-1)
+                weight = sim_gg_topk /sum_sim_topk.view(-1, 1)
+                gf_topk =  gf_new[sim_gg_argtopk].permute(0, 2, 1)
+                centroid_g = torch.bmm(gf_topk, weight.unsqueeze(-1)).squeeze()
 
             else:
-                centroids_labels.append(label)
-                centroids_emb = embeddings_gallery[inds]
-                centroids_emb = self._calculate_centroids(centroids_emb, dim=0)
-                centroids_embeddings.append(centroids_emb.detach().cpu())
-       
-        centroids_embeddings = torch.stack(centroids_embeddings).squeeze()
+                gf_topk = gf_new[sim_gg_argtopk]
+                sum_topk = torch.sum(gf_topk, dim = 1).squeeze()
+                centroid_g = sum_topk/k 
+
+            dict[indx] = centroid_g
+        del sim_gg 
+        for i in tqdm(range(len(q_ids))):
+
+            curr_camid = q_camids[i] #camid of query
+            sim_qg = torch.mm(qf[i].view(1, -1), gf.t())
+            centroid_g = dict[curr_camid]
+            sim_centroid = torch.mm(qf[i].view(1, -1), centroid_g.t())
         
-        if not all_cameras:
-            query_camid = [[item] for item in query_camid]
-            centroids_camids = centroids_camids
-
-        if all_cameras:
-
-            camids_query = np.zeros_like(labels_query)
-            camids_gallery = np.ones_like(np.array(centroids_labels))
-            centroids_camids = np.hstack(
-                (camids_query, np.array(camids_gallery)))
-        
-        
-        centroids_embeddings = centroids_embeddings.cpu()
-
-        centroids = torch.tensor([])
-        for idx, label in enumerate(labels_gallery):
-            indx_pid = np.where(centroids_labels == label)[0]
-            if (indx_pid.size == 0):
-                centroids = torch.cat((centroids, embeddings_gallery[idx].view(1, -1)), dim = 0)
-                continue
-            ind_new = []
-            for i, centroid_camid in enumerate(centroids_camids):
-                if (g_camids[idx] not in centroid_camid):
-                    ind_new.append(i)
-            index_final = np.intersect1d(indx_pid, ind_new)
-            centroids = torch.cat((centroids, centroids_embeddings[index_final[0]].view(1, -1)), dim = 0)
-
-        return centroids
-
-    def _calculate_centroids(self,vecs, dim=1):
-        # print(vecs.size())
-        length = vecs.shape[dim]
-        W=[]
-        s = 0
-        for i in range(length):
-            s += (math.log(length+1)-math.log(i+1))
-        for i in range(length):
-            W.append((math.log(length+1)-math.log(i+1))/s)
-        W=np.flip(np.array(W), axis=0).reshape(1,-1)
-        W = torch.from_numpy(np.array(W)).type(torch.FloatTensor)
-        centroid = torch.sum(vecs, dim).view(1, -1) / length
-        return centroid
+            fusion = self.alpha*sim_qg + self.beta*sim_centroid #svm-linear
+            #fusion = model.predict(np.column_stack((np.asarray(sim_qg)[0], np.asarray(sim_centroid)[0])))
+            # fusion = model.predict(np.column_stack((np.asarray(sim_qg)[0], np.asarray(sim_centroid)[0])))
+            #print(fusion[20])
+            simmat = torch.cat((simmat, fusion.view(1, -1)), dim = 0)
+        del dict
+        return simmat
     
+
+    def create_centroids_certainty(self, q_camids, g_camids, labels_query, labels_gallery, embeddings_query, embeddings_gallery, all_cameras=False):
+        #print(embeddings_gallery[0])
+        all_sim_qc = []
+        for qf,q_id,q_camid in tzip(embeddings_query,labels_query,q_camids):
+            centroids=[]
+            cared={}
+            for gf,g_id,g_camid in zip(embeddings_gallery,labels_gallery,g_camids):
+                #if q_id == g_id:
+                    # index_camid = np.where(g_camid != q_camid)[0]
+                key = (q_id, g_id, q_camid)
+                if key in cared.keys():
+                    centroid = cared[key]
+                else:
+                    index_g = np.where(labels_gallery == g_id)[0]
+                    index = [id for id in index_g if g_camids[id] != q_camid]
+                    centroid = torch.mean(embeddings_gallery[index], 0)
+                    cared[key] = centroid
+                centroids.append(centroid)
+
+            centroids = torch.stack(centroids)
+            sim_qc = qf @ centroids.t()
+            all_sim_qc.append(sim_qc.view(-1))
+        all_sim_qc = torch.stack(all_sim_qc, dim=0)
+        
+        return all_sim_qc
+
     def compute(self):
         feats = torch.cat(self.feats, dim=0)
         if self.feat_norm == 'yes':
             feats = torch.nn.functional.normalize(feats, dim=1, p=2)
             print("The test feature is normalized")
+
+        # feats = torch.FloatTensor(np.load("/home/ceec/chuong/reid/test_person/feats.npy"))
+        # self.pids = np.load("/home/ceec/chuong/reid/test_person/f_ids.npy")
+        # self.camids = np.load("/home/ceec/chuong/reid/test_person/f_camids.npy")
         # query
         qf = feats[:self.num_query].cpu()
         q_pids = np.asarray(self.pids[:self.num_query])
@@ -252,37 +198,48 @@ class R1_mAP(Metric):
         gf = feats[self.num_query:].cpu()
         g_pids = np.asarray(self.pids[self.num_query:])
         g_camids = np.asarray(self.camids[self.num_query:])
-
         m, n = qf.shape[0], gf.shape[0]
         if (self.metrics == "cs+ct"):
-            print("Combining cosine and centroid as metric")
+            print("Combining cosine and centroid as metric...")
             if self.uncertainty:
-                print("Calculating centroid base on uncertainty")
-                centroids_embeddings = \
-                self.create_centroids_uncertainty(q_camids, g_camids, q_pids, g_pids, qf, gf, all_cameras=self.all_cameras, weighted_knear=self.weighted, k=self.k)
+                print("Calculating centroid base on uncertainty...")
+                # distmat = torch.FloatTensor(np.load(
+                #     '/home/ceec/chuong/reid/dismat.npy'))
+                simmat = \
+                       self.create_centroids_uncertainty(q_camids, g_camids, q_pids, g_pids, qf, gf, k=self.k, all_cameras=self.all_cameras, weighted_knear=self.weighted)
             else:
-                print("Calculating centroid base on certainty")
-                centroids_embeddings = \
-                    self.validation_create_centroids(q_camids, g_camids, q_pids, g_pids, qf, gf, all_cameras=self.all_cameras)   
-            
-            norm_sim_c = torch.mm(qf, centroids_embeddings.t())
-            norm_sim = torch.mm(qf, gf.t())
-            distmat = -0.4160539651426207*norm_sim + 21.481786452879657*norm_sim_c #baseline market
-            #distmat = 5.548447318974089*norm_sim + 13.11322659881579*norm_sim_c #baseline veri
+                print("Calculating centroid base on certainty...")
+                all_sim_qc = \
+                        self.create_centroids_certainty(q_camids, g_camids, q_pids, g_pids, qf, gf, all_cameras=self.all_cameras)
+                norm_sim = qf @ gf.t()
+                simmat = self.alpha*norm_sim + self.beta*all_sim_qc   
+            #np.save("/home/ceec/chuong/reid/simmat_weighted.npy", np.asarray(simmat.cpu()))
 
         elif (self.metrics == "centroid"):
-            print("Using centroid as metric")
-            centroids_embeddings = \
-                self.validation_create_centroids(q_camids, g_camids, q_pids, g_pids, qf, gf, all_cameras=self.all_cameras)
-            distmat = torch.mm(qf, centroids_embeddings.t())
+            print("Using centroid as metric...")
+            simmat = \
+                self.create_centroids_certainty(q_camids, g_camids, q_pids, g_pids, qf, gf, all_cameras=self.all_cameras)
 
-        else:
-            print("Using cosine as metric")
-            distmat = torch.mm(qf, gf.t())
-        
-        indices = torch.argsort(1-distmat, dim=1)
+        elif (self.metrics == "cosine"):
+            print("Using cosine as metric...")
+            simmat = torch.mm(qf, gf.t())
+
+        indices = torch.argsort(1-simmat, dim=1)
+        del qf
+        del gf
         cmc, mAP, _ = eval_func(np.asarray(indices.cpu(), dtype=np.int32), q_pids, g_pids, q_camids, g_camids,metrics=self.metrics, respect_camids=True)
-
+        if self.vis_top:
+            print("Start visualization...")
+            visualize_ranked_results(
+                1 - simmat,
+                self.val_set,
+                "image",
+                self.cfg,
+                width=self.cfg.INPUT.SIZE_TEST[1],
+                height=self.cfg.INPUT.SIZE_TEST[0],
+                save_dir=os.path.join(self.cfg.OUTPUT_DIR, "visrank"),
+                topk=self.vis_top,
+            )
         return cmc, mAP
 
 
@@ -303,100 +260,7 @@ class R1_mAP_reranking(Metric):
         self.feats.append(feat)
         self.pids.extend(np.asarray(pid))
         self.camids.extend(np.asarray(camid))
-    def validation_create_centroids(self, q_camids, g_camids, labels_query, labels_gallery, embeddings_query, embeddings_gallery, respect_camids=True):
-        #print(embeddings_gallery[0])
-        self.num_query = len(embeddings_query)
-        #print("num query", self.num_query)
-        labels2idx = defaultdict(list)
-        for idx, label in enumerate(labels_gallery):
-            labels2idx[label].append(idx)
-
-        labels2idx_q = defaultdict(list)
-        for idx, label in enumerate(labels_query):
-            labels2idx_q[label].append(idx)
-        unique_labels = sorted(np.unique(list(labels2idx.keys())))
-        labels = np.array(list(labels2idx.keys()))
-        centroids_embeddings = []
-        centroids_labels = []
-
-        if respect_camids:
-            centroids_camids = []
-            query_camid = q_camids
-
-        # Create centroids for each pid seperately
-        for label in unique_labels:
-            cmaids_combinations = set()
-            inds = labels2idx[label]
-            inds_q = labels2idx_q[label]
-            if respect_camids:
-                selected_camids_g = g_camids[inds]
-
-                selected_camids_q = q_camids[inds_q]
-                unique_camids = sorted(np.unique(selected_camids_q))
-
-                for current_camid in unique_camids:
-                    # We want to select all gallery images that comes from DIFFERENT cameraId
-                    camid_inds = np.where(
-                        selected_camids_g != current_camid)[0]
-                    if camid_inds.shape[0] == 0:
-                        continue
-                    used_camids = sorted(
-                        np.unique(
-                            [cid for cid in selected_camids_g if cid != current_camid]
-                        )
-                    )
-                    camid_unique = []
-                    camid_bag = []
-                    for index in camid_inds:
-                        if (self.search(g_camids[index], camid_bag,5)==True):
-                            camid_bag.append(g_camids[index])
-                            camid_unique.append(index)
-                        #g_camids[index] not in camid_bag or 
-                    # print('---------', current_camid)
-                    # print(g_camids[inds][camid_unique])
-                    if tuple(used_camids) not in cmaids_combinations:
-                        cmaids_combinations.add(tuple(used_camids))
-                        centroids_emb = embeddings_gallery[inds][camid_inds]
-                        centroids_emb = self._calculate_centroids(
-                            centroids_emb, dim=0)
-                        centroids_embeddings.append(
-                            centroids_emb.detach().cpu())
-                        centroids_camids.append(used_camids)
-                        centroids_labels.append(label)
-
-            else:
-                # print("here", label)
-                centroids_labels.append(label)
-                centroids_emb = embeddings_gallery[inds]
-                centroids_emb = self._calculate_centroids(centroids_emb, dim=0)
-                centroids_embeddings.append(centroids_emb.detach().cpu())
-        #print(centroids_labels)
-        # Make a single tensor from query and gallery data
-        centroids_embeddings = torch.stack(centroids_embeddings).squeeze()
-        if respect_camids:
-            query_camid = [[item] for item in query_camid]
-            centroids_camids = centroids_camids
-
-        if not respect_camids:
-
-            camids_query = np.zeros_like(labels_query)
-            camids_gallery = np.ones_like(np.array(centroids_labels))
-            centroids_camids = np.hstack(
-                (camids_query, np.array(camids_gallery)))
-        return centroids_embeddings.cpu(), centroids_labels, centroids_camids
     
-    def _calculate_centroids(self,vecs, dim=1):
-        length = vecs.shape[dim]
-        W=[]
-        s = 0
-        for i in range(length):
-            s += (math.log(length+1)-math.log(i+1))
-        for i in range(length):
-            W.append((math.log(length+1)-math.log(i+1))/s)
-        W=np.flip(np.array(W), axis=0).reshape(1,-1)
-        W = torch.from_numpy(np.array(W)).type(torch.FloatTensor)
-        centroid = torch.sum(vecs, dim).view(1, -1) / length
-        return centroid
     def compute(self):
         feats = torch.cat(self.feats, dim=0)
         if self.feat_norm == 'yes':

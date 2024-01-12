@@ -115,7 +115,7 @@ class R1_mAP(Metric):
         # X = np.load("/home/ceec/chuong/reid/X_train.npy")
         # Y = np.load("/home/ceec/chuong/reid/Y_train.npy")
         
-        sim_gg = 0.8/(1+ torch.cdist(gf, gf, p=2)) +  0.55/(1+ torch.cdist(gf, gf, p=2))
+        sim_gg = 0.8/(1+ torch.cdist(gf, gf, p=1)) +  0.55*torch.mm(gf, gf.t())
         for indx in tqdm(unique_camids_q):
             ind_qcamid = camid2idx[indx] # index of gallery feature has camid = q_camid
 
